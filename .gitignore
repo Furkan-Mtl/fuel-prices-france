@@ -5,3 +5,6 @@ __pycache__/
 
 # Données (trop volumineuses pour GitHub, elles se régénèrent avec le script)
 data/
+
+# Mots de passe et paramètres locaux
+.env
