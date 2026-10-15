@@ -1,10 +1,10 @@
-# French Fuel Prices — From Open Data API to Power BI
+# French Fuel Prices: From Open Data API to Power BI
 
 > Personal project built with **Python, REST API, PostgreSQL, SQL, Power BI and Git**
 
 An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, checks their quality and turns them into a three-page Power BI dashboard.
 
-![Dashboard — overview](images/page1-vue-ensemble.png)
+![Dashboard overview](images/page1-vue-ensemble.png)
 
 ## Business questions
 
@@ -118,7 +118,7 @@ pip install -r requirements.txt
 
 ## Data source
 
-[Prix des carburants en France — flux instantané v2](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/), Ministère de l'Économie, Licence Ouverte.
+[Prix des carburants en France, flux instantané v2](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/), Ministère de l'Économie, Licence Ouverte.
 
 ---
 
