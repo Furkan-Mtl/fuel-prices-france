@@ -34,8 +34,8 @@ Power BI (star schema, DAX measures, 3 report pages)
 
 **Collection (Python, Requests, Pandas)**
 - The API only returns *current* prices so the script runs every day to build a price history.
-- The data is reshaped into a long format : one row per station and per fuel (9,800 stations and 31,000 prices per collection).
-- Quality checks run before saving : non-numeric prices, prices outside 0.50–4 €, duplicates.
+- The data is reshaped into a long format: one row per station and per fuel (9,800 stations and 31,000 prices per collection).
+- Quality checks run before saving: non-numeric prices, prices outside 0.50–4 €, duplicates.
 
 **Storage (PostgreSQL)**
 - Two tables, `stations` and `prix`, with a composite primary key `(id_station, carburant, date_collecte)`.
@@ -47,7 +47,7 @@ Power BI (star schema, DAX measures, 3 report pages)
 - Mean vs median per fuel, gazole price by region, cheapest stations, regional spread, cheapest station per region (`ROW_NUMBER`), share of stale prices (`FILTER`), using CTEs and window functions.
 
 **Power BI dashboard**
-- Star schema : `Prix` fact table, `Stations` and `Calendrier` dimensions.
+- Star schema: `Prix` fact table, `Stations` and `Calendrier` dimensions.
 - DAX measures with variables (latest collection, current median, gap to the national median, stale-price share).
 - Map colour scale based on price quintiles, computed in DAX (`PERCENTILEX.INC`) so that outliers do not flatten the scale.
 
@@ -63,11 +63,11 @@ Power BI (star schema, DAX measures, 3 report pages)
 
 *Snapshot of 15 October 2026.*
 
-- **Validated against official figures :** during development, my national gazole median matched the officially published median, and the other fuels were within about 1 cent.
+- **Validated against official figures:** during development, my national gazole median matched the officially published median, and the other fuels were within about 1 cent.
 - **Grand Est is the most expensive region** for gazole (+5.1 cents above the national median), while **Bretagne and Pays de la Loire are the cheapest** on the mainland (about −2.5 cents).
-- **Corsica looks cheap on gazole but is not reliable** : very few Corsican stations have an up-to-date price.
-- **Prices cluster on round values** : many stations in a region sell gazole at exactly 2.250 €, probably because stations of the same brand share a price.
-- **Data freshness varies a lot by fuel :** 39 % of GPLc prices and 38 % of SP95 prices are more than 7 days old, against 18 % for SP95-E10.
+- **Corsica looks cheap on gazole but is not reliable**: very few Corsican stations have an up-to-date price.
+- **Prices cluster on round values**: many stations in a region sell gazole at exactly 2.250 €, probably because stations of the same brand share a price.
+- **Data freshness varies a lot by fuel:** 39 % of GPLc prices and 38 % of SP95 prices are more than 7 days old, against 18 % for SP95-E10.
 
 ## Data quality
 
@@ -94,7 +94,7 @@ pip install -r requirements.txt
 
 1. Create a database `carburants` and run `sql/01_schema.sql` then `sql/02_vue_prix_actuels.sql`.
 2. Copy `.env.example` to `.env` and set your PostgreSQL password.
-3. Run the pipeline : `python src/pipeline.py`
+3. Run the pipeline: `python src/pipeline.py`
 4. (Optional) Schedule `src/pipeline.py` daily with Windows Task Scheduler.
 5. Open `powerbi/carburants.pbix` and refresh.
 
@@ -114,7 +114,7 @@ pip install -r requirements.txt
 
 - The history starts in October 2026, so trends over time are not yet meaningful; the daily collection keeps building it.
 - The collection runs on a personal computer: a missed day leaves a gap (visible on the data quality page). Moving it to a cloud scheduler would fix this.
-- Next steps : price trends per fuel over time, a comparison by brand, and a small API (FastAPI) exposing current prices.
+- Next steps: price trends per fuel over time, a comparison by brand, and a small API (FastAPI) exposing current prices.
 
 ## Data source
 
