@@ -1,6 +1,6 @@
 # French Fuel Prices — From Open Data API to Power BI
 
-> Personal project · **Python - REST API - PostgreSQL - SQL - Power BI - Git**
+> Personal project built with **Python, REST API, PostgreSQL, SQL, Power BI and Git**
 
 An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, checks their quality and turns them into a three-page Power BI dashboard.
 
