@@ -18,10 +18,10 @@ An end-to-end data pipeline that collects the prices of every fuel station in Fr
 Open data API (data.economie.gouv.fr)
         │  daily at 09:00 (Windows Task Scheduler)
         ▼
-collecte.py ── reshape to long format + quality checks ──► data/raw/*.csv
+collecte.py : reshape to long format + quality checks ──► data/raw/*.csv
         │
         ▼
-chargement.py ── idempotent load (ON CONFLICT) ──► PostgreSQL
+chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
                                                    ├─ stations
                                                    ├─ prix (history)
                                                    └─ v_prix_actuels (view)
