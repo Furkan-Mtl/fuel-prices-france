@@ -3,3 +3,5 @@ pandas
 psycopg[binary]
 python-dotenv
 ipykernel
+fastapi
+uvicorn
