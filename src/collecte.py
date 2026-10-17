@@ -64,19 +64,29 @@ def mettre_en_forme(stations: list[dict], date_collecte: datetime) -> pd.DataFra
     return pd.DataFrame(lignes)
 
 
-def controler_qualite(df: pd.DataFrame) -> None:
-    """Contrôles de base : on s'arrête si les données sont inutilisables."""
+def controler_qualite(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Contrôle la qualité des données et renvoie une copie nettoyée :
+    - arrêt si aucune donnée n'a été récupérée ;
+    - suppression des prix non numériques ou hors de [0,50 € ; 4 €] ;
+    - suppression des doublons station / carburant.
+    """
     if df.empty:
         raise ValueError("Aucune donnée récupérée : l'API a peut-être changé.")
 
+    df = df.copy()
     df["prix"] = pd.to_numeric(df["prix"], errors="coerce")
-    nb_prix_invalides = df["prix"].isna().sum()
-    nb_prix_aberrants = ((df["prix"] < 0.5) | (df["prix"] > 4)).sum()
-    nb_doublons = df.duplicated(subset=["id", "carburant"]).sum()
+    invalides = df["prix"].isna()
+    aberrants = (df["prix"] < 0.5) | (df["prix"] > 4)
+    doublons = df.duplicated(subset=["id", "carburant"])
 
-    print(f"  Prix non numériques       : {nb_prix_invalides}")
-    print(f"  Prix hors [0,50 € ; 4 €]  : {nb_prix_aberrants}")
-    print(f"  Doublons station/carburant: {nb_doublons}")
+    print(f"  Prix non numériques       : {invalides.sum()}")
+    print(f"  Prix hors [0,50 € ; 4 €]  : {aberrants.sum()}")
+    print(f"  Doublons station/carburant: {doublons.sum()}")
+
+    propre = df[~invalides & ~aberrants].drop_duplicates(subset=["id", "carburant"])
+    print(f"  Lignes conservées         : {len(propre)} / {len(df)}")
+    return propre
 
 
 def main() -> None:
@@ -89,7 +99,7 @@ def main() -> None:
     df = mettre_en_forme(stations, date_collecte)
     print(f"  Lignes station x carburant: {len(df)}")
 
-    controler_qualite(df)
+    df = controler_qualite(df)
 
     DOSSIER_SORTIE.mkdir(parents=True, exist_ok=True)
     fichier = DOSSIER_SORTIE / f"prix_{date_collecte:%Y-%m-%d_%Hh%M}.csv"

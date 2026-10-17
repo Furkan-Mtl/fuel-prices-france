@@ -1,10 +1,6 @@
-# Environnement Python
 .venv/
 __pycache__/
 .ipynb_checkpoints/
-
-# Données (trop volumineuses pour GitHub, elles se régénèrent avec le script)
 data/
-
-# Mots de passe et paramètres locaux
 .env
+.pytest_cache/
