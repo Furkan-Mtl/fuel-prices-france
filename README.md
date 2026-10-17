@@ -1,8 +1,10 @@
 # French Fuel Prices: From Open Data API to Power BI
 
-> Personal project built with **Python, REST API, PostgreSQL, SQL, Power BI and Git**
+[![Tests](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml/badge.svg)](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml)
 
-An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, checks their quality and turns them into a three-page Power BI dashboard.
+> Personal project built with **Python, FastAPI, PostgreSQL, SQL, Power BI, Git and GitHub Actions**
+
+An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, checks their quality, turns them into a three-page Power BI dashboard and exposes them through a REST API.
 
 ![Dashboard overview](images/page1-vue-ensemble.png)
 
@@ -26,8 +28,8 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
                                                    ├─ prix (history)
                                                    └─ v_prix_actuels (view)
         │
-        ▼
-Power BI (star schema, DAX measures, 3 report pages)
+        ├──► Power BI (star schema, DAX measures, 3 report pages)
+        └──► api.py : REST API (FastAPI) on current prices
 ```
 
 ## What I built
@@ -35,7 +37,7 @@ Power BI (star schema, DAX measures, 3 report pages)
 **Collection (Python, Requests, Pandas)**
 - The API only returns *current* prices so the script runs every day to build a price history.
 - The data is reshaped into a long format: one row per station and per fuel (9,800 stations and 31,000 prices per collection).
-- Quality checks run before saving: non-numeric prices, prices outside 0.50–4 €, duplicates.
+- Quality checks run before saving: non-numeric prices, prices outside 0.50–4 € and duplicates are counted, then removed.
 
 **Storage (PostgreSQL)**
 - Two tables, `stations` and `prix`, with a composite primary key `(id_station, carburant, date_collecte)`.
@@ -58,6 +60,22 @@ Power BI (star schema, DAX measures, 3 report pages)
 | Data quality | Share of stale prices per fuel, number of collections per day, list of quality controls |
 
 ![Regional comparison](images/page2-regions.png)
+
+**REST API (FastAPI)** (`src/api.py`)
+- Reads the `v_prix_actuels` view, so the API and the dashboard use the same "current price" rule.
+- Parameters are validated by FastAPI (an unknown fuel returns a 422 error) and SQL queries are parameterised to prevent SQL injection.
+- Interactive documentation generated automatically at `/docs`.
+
+| Endpoint | Returns |
+| --- | --- |
+| `GET /` | Status and date of the latest collection |
+| `GET /stations/{id}/prix` | Current prices of a station (404 if unknown) |
+| `GET /prix/moins-chers?carburant=gazole&region=...` | Cheapest stations in France or in a region |
+| `GET /regions?carburant=gazole` | Median price per region and gap to the national median, in cents |
+
+**Tests and continuous integration**
+- 6 automated tests with pytest (`tests/`): reshaping, removal of out-of-range prices and duplicates, behaviour when the API returns nothing, API parameter validation.
+- GitHub Actions runs the tests on every push (`.github/workflows/tests.yml`); the badge at the top shows the latest result.
 
 ## Key findings
 
@@ -97,6 +115,8 @@ pip install -r requirements.txt
 3. Run the pipeline: `python src/pipeline.py`
 4. (Optional) Schedule `src/pipeline.py` daily with Windows Task Scheduler.
 5. Open `powerbi/carburants.pbix` and refresh.
+6. Start the API: `uvicorn api:app --reload --app-dir src`, then open http://127.0.0.1:8000/docs
+7. Run the tests: `python -m pytest -v`
 
 ## Repository structure
 
@@ -105,6 +125,9 @@ pip install -r requirements.txt
 | `src/collecte.py` | API collection, reshaping, quality checks |
 | `src/chargement.py` | Load into PostgreSQL |
 | `src/pipeline.py` | Runs collection then load |
+| `src/api.py` | REST API (FastAPI) on current prices |
+| `tests/` | Automated tests (pytest) |
+| `.github/workflows/tests.yml` | Continuous integration (GitHub Actions) |
 | `sql/` | Schema, current-price view, analysis queries |
 | `notebooks/` | API exploration |
 | `powerbi/carburants.pbix` | Power BI dashboard |
@@ -114,7 +137,7 @@ pip install -r requirements.txt
 
 - The history starts in October 2026, so trends over time are not yet meaningful; the daily collection keeps building it.
 - The collection runs on a personal computer: a missed day leaves a gap (visible on the data quality page). Moving it to a cloud scheduler would fix this.
-- Next steps: price trends per fuel over time, a comparison by brand, and a small API (FastAPI) exposing current prices.
+- Next steps: price trends per fuel over time, a comparison by brand, and deploying the API online.
 
 ## Data source
 
