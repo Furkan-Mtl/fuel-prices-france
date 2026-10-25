@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: fct_prix_actuels
+    description: >
+      Prix actuels par station et par carburant (dernière collecte, prix
+      mis à jour depuis moins de 7 jours). Source du tableau de bord.
+    columns:
+      - name: id_station
+        data_tests: [not_null]
+      - name: carburant
+        data_tests: [not_null]
+      - name: prix
+        data_tests: [not_null]
+
+  - name: mart_ecart_region
+    description: Prix médian par région et carburant, et écart à la médiane nationale en centimes
+    columns:
+      - name: region
+        data_tests: [not_null]
+      - name: nb_stations
+        data_tests: [not_null]
+      - name: ecart_centimes
+        description: Positif si la région est plus chère que la médiane nationale
+
+  - name: mart_qualite_collecte
+    description: Nombre de prix et part de prix périmés par jour de collecte et carburant
+    columns:
+      - name: part_prix_perimes
+        description: Entre 0 et 1
+        data_tests: [not_null]

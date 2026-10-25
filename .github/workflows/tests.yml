@@ -24,3 +24,42 @@ jobs:
 
       - name: Lancer les tests
         run: pytest -v
+
+  dbt:
+    runs-on: ubuntu-latest
+    # Base PostgreSQL temporaire, créée pour la durée du test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: carburants
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: carburants
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer dbt
+        run: pip install dbt-core==1.12.6 dbt-postgres==1.11.0
+
+      - name: Créer le schéma et charger des données de test
+        run: |
+          psql -f sql/01_schema.sql
+          psql -f sql/02_vue_prix_actuels.sql
+          psql -f dbt_carburants/ci/donnees_test.sql
+
+      - name: Construire les modèles et lancer les tests dbt
+        working-directory: dbt_carburants
+        run: dbt build

@@ -2,17 +2,17 @@
 
 [![Tests](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml/badge.svg)](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml)
 
-> Personal project built with **Python, FastAPI, PostgreSQL, SQL, Power BI, Git and GitHub Actions**
+> Personal project built with **Python, FastAPI, PostgreSQL, SQL, dbt, Power BI, Git and GitHub Actions**
 
-An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, checks their quality, turns them into a three-page Power BI dashboard and exposes them through a REST API.
+An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, transforms and tests them with dbt, turns them into a three-page Power BI dashboard and exposes them through a REST API.
 
 ![Dashboard overview](images/page1-vue-ensemble.png)
 
 ## Business questions
 
-1. How much does each fuel cost today in France, and how do regions compare with the national median ?
-2. Where are the cheapest stations in a given region ?
-3. How reliable is the data: how many prices are out of date, and does the collection run every day ?
+1. How much does each fuel cost today in France, and how do regions compare with the national median?
+2. Where are the cheapest stations in a given region?
+3. How reliable is the data: how many prices are out of date, and does the collection run every day?
 
 ## Architecture
 
@@ -28,6 +28,7 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
                                                    ├─ prix (history)
                                                    └─ v_prix_actuels (view)
         │
+        ├──► dbt : staging views, tested marts ──► schemas staging / marts
         ├──► Power BI (star schema, DAX measures, 3 report pages)
         └──► api.py : REST API (FastAPI) on current prices
 ```
@@ -47,6 +48,13 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
 
 **SQL analysis** (`sql/03_analyses.sql`)
 - Mean vs median per fuel, gazole price by region, cheapest stations, regional spread, cheapest station per region (`ROW_NUMBER`), share of stale prices (`FILTER`), using CTEs and window functions.
+
+**Transformations and data tests (dbt)** (`dbt_carburants/`)
+- Staging models clean and type the raw tables (`stg_stations`, `stg_prix`) and flag stale prices.
+- Mart tables: `fct_prix_actuels` (current prices), `mart_ecart_region` (regional median vs national median, in cents) and `mart_qualite_collecte` (number of prices and stale-price share per collection day and fuel).
+- 18 data tests: unique and not null keys, accepted fuel values, every price linked to a known station, prices between 0.50 and 4 €, one current price per station and fuel, and a check that dbt and the API view return the same number of prices.
+- Source freshness check: a warning if no collection has arrived for more than 26 hours.
+- The thresholds (7 days, 0.50–4 €) are dbt variables, defined once in `dbt_project.yml`.
 
 **Power BI dashboard**
 - Star schema: `Prix` fact table, `Stations` and `Calendrier` dimensions.
@@ -75,6 +83,7 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
 
 **Tests and continuous integration**
 - 6 automated tests with pytest (`tests/`): reshaping, removal of out-of-range prices and duplicates, behaviour when the API returns nothing, API parameter validation.
+- A second CI job starts a temporary PostgreSQL database, loads a small test dataset and runs `dbt build` (models and data tests).
 - GitHub Actions runs the tests on every push (`.github/workflows/tests.yml`); the badge at the top shows the latest result.
 
 ## Key findings
@@ -117,6 +126,7 @@ pip install -r requirements.txt
 5. Open `powerbi/carburants.pbix` and refresh.
 6. Start the API: `uvicorn api:app --reload --app-dir src`, then open http://127.0.0.1:8000/docs
 7. Run the tests: `python -m pytest -v`
+8. Build the dbt models and run the data tests: `cd dbt_carburants` then `dbt build` (check data freshness with `dbt source freshness`)
 
 ## Repository structure
 
@@ -126,6 +136,7 @@ pip install -r requirements.txt
 | `src/chargement.py` | Load into PostgreSQL |
 | `src/pipeline.py` | Runs collection then load |
 | `src/api.py` | REST API (FastAPI) on current prices |
+| `dbt_carburants/` | dbt project: staging and mart models, data tests |
 | `tests/` | Automated tests (pytest) |
 | `.github/workflows/tests.yml` | Continuous integration (GitHub Actions) |
 | `sql/` | Schema, current-price view, analysis queries |

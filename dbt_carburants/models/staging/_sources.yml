@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: brut
+    description: Tables chargées chaque jour par src/pipeline.py
+    schema: public
+    tables:
+      - name: stations
+        description: Une ligne par station-service
+      - name: prix
+        description: Une ligne par station, carburant et collecte (historique)
+        loaded_at_field: date_collecte
+        freshness:
+          warn_after: {count: 26, period: hour}
+          error_after: {count: 50, period: hour}

@@ -4,3 +4,10 @@ __pycache__/
 data/
 .env
 .pytest_cache/
+
+# dbt (fichiers générés)
+dbt_carburants/target/
+dbt_carburants/logs/
+dbt_carburants/dbt_packages/
+dbt_carburants/.user.yml
+logs/

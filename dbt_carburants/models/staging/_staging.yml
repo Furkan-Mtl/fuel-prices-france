@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_stations
+    description: Stations nettoyées
+    columns:
+      - name: id_station
+        description: Identifiant officiel de la station
+        data_tests: [unique, not_null]
+
+  - name: stg_prix
+    description: Prix typés, avec un indicateur de prix périmé
+    columns:
+      - name: id_station
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_stations')
+                field: id_station
+      - name: carburant
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['gazole', 'sp95', 'sp98', 'e10', 'e85', 'gplc']
+      - name: prix
+        data_tests: [not_null]
+      - name: date_collecte
+        data_tests: [not_null]
+      - name: est_perime
+        description: Vrai si le prix n'a pas été mis à jour depuis plus de 7 jours
