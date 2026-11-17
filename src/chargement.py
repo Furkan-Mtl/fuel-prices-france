@@ -4,6 +4,8 @@ Chargement des fichiers collectés (data/raw/*.csv) dans PostgreSQL.
 - Les stations sont insérées, ou mises à jour si elles existent déjà.
 - Les prix sont ajoutés ; une ligne déjà chargée est ignorée.
   Le script peut donc être relancé sans risque de créer des doublons.
+- Les lignes sont envoyées par paquets, avec une validation après chaque
+  paquet : un gros historique ne bloque plus la connexion.
 
 Les paramètres de connexion sont lus dans le fichier .env (non versionné).
 
@@ -20,6 +22,9 @@ from dotenv import load_dotenv
 
 RACINE = Path(__file__).resolve().parent.parent
 DOSSIER_RAW = RACINE / "data" / "raw"
+
+# Nombre de lignes envoyées à PostgreSQL à chaque paquet
+TAILLE_PAQUET = 10_000
 
 # Colonnes à lire comme du texte : sinon pandas transforme "01000" en 1000
 COLONNES_TEXTE = {"cp": str, "code_departement": str, "code_region": str}
@@ -60,6 +65,12 @@ def connexion() -> psycopg.Connection:
         dbname=os.getenv("PGDATABASE", "carburants"),
         user=os.getenv("PGUSER", "postgres"),
         password=os.getenv("PGPASSWORD"),
+        connect_timeout=10,
+        # Garde la connexion active pendant les longs chargements
+        keepalives=1,
+        keepalives_idle=30,
+        keepalives_interval=10,
+        keepalives_count=5,
     )
 
 
@@ -91,6 +102,18 @@ def sans_nan(valeur):
     return None if pd.isna(valeur) else valeur
 
 
+def inserer_par_paquets(conn, cur, sql, lignes, nom) -> None:
+    """Insère les lignes par paquets et valide chaque paquet."""
+    total = len(lignes)
+    for debut in range(0, total, TAILLE_PAQUET):
+        paquet = lignes[debut:debut + TAILLE_PAQUET]
+        cur.executemany(sql, paquet)
+        conn.commit()
+        fin = min(debut + TAILLE_PAQUET, total)
+        print(f"  {nom:<26}: {fin}/{total}", end="\r", flush=True)
+    print()
+
+
 def charger(df: pd.DataFrame) -> None:
     # Pour chaque station, on garde les informations de la collecte la plus récente
     stations = (
@@ -116,8 +139,8 @@ def charger(df: pd.DataFrame) -> None:
         cur.execute("SELECT COUNT(*) FROM prix")
         avant = cur.fetchone()[0]
 
-        cur.executemany(SQL_STATION, lignes_stations)
-        cur.executemany(SQL_PRIX, lignes_prix)
+        inserer_par_paquets(conn, cur, SQL_STATION, lignes_stations, "Stations envoyées")
+        inserer_par_paquets(conn, cur, SQL_PRIX, lignes_prix, "Prix envoyés")
 
         cur.execute("SELECT COUNT(*) FROM stations")
         nb_stations = cur.fetchone()[0]

@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml/badge.svg)](https://github.com/Furkan-Mtl/fuel-prices-france/actions/workflows/tests.yml)
 
-> Personal project built with **Python, FastAPI, PostgreSQL, SQL, dbt, Power BI, Git and GitHub Actions**
+> Personal project built with **Python, FastAPI, PostgreSQL, SQL, dbt, Power BI, Docker, Git and GitHub Actions**
 
 An end-to-end data pipeline that collects the prices of every fuel station in France every day, stores them in PostgreSQL, transforms and tests them with dbt, turns them into a three-page Power BI dashboard and exposes them through a REST API.
 
@@ -23,7 +23,7 @@ Open data API (data.economie.gouv.fr)
 collecte.py : reshape to long format + quality checks ──► data/raw/*.csv
         │
         ▼
-chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
+chargement.py : idempotent batch load (ON CONFLICT) ──► PostgreSQL
                                                    ├─ stations
                                                    ├─ prix (history)
                                                    └─ v_prix_actuels (view)
@@ -43,6 +43,7 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
 **Storage (PostgreSQL)**
 - Two tables, `stations` and `prix`, with a composite primary key `(id_station, carburant, date_collecte)`.
 - The load is idempotent: running the pipeline twice never creates duplicates (`ON CONFLICT DO NOTHING` / `DO UPDATE`).
+- Rows are sent in batches of 10,000, each committed separately: the full history (over 1.1 million prices) loads without the connection timing out.
 - The view `v_prix_actuels` keeps the latest collection only and excludes prices not updated for more than 7 days.
 - Credentials live in a `.env` file that is never committed.
 
@@ -81,6 +82,11 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
 | `GET /prix/moins-chers?carburant=gazole&region=...` | Cheapest stations in France or in a region |
 | `GET /regions?carburant=gazole` | Median price per region and gap to the national median, in cents |
 
+**Containerisation (Docker)**
+- A `Dockerfile` (Python 3.12 slim) packages the pipeline, the dbt project and the API in one image.
+- `docker-compose.yml` starts three services: PostgreSQL 16 (schema created automatically on first start, health check), the API, and the pipeline (run on demand).
+- The whole project runs with three commands, without installing Python or PostgreSQL locally.
+
 **Tests and continuous integration**
 - 6 automated tests with pytest (`tests/`): reshaping, removal of out-of-range prices and duplicates, behaviour when the API returns nothing, API parameter validation.
 - A second CI job starts a temporary PostgreSQL database, loads a small test dataset and runs `dbt build` (models and data tests).
@@ -111,6 +117,23 @@ chargement.py : idempotent load (ON CONFLICT) ──► PostgreSQL
 
 ## How to run
 
+### With Docker (recommended)
+
+Requirements: Docker Desktop.
+
+1. Copy `.env.example` to `.env` and set your PostgreSQL password.
+2. Start the database, run the pipeline, then start the API:
+
+```bash
+docker compose up -d db
+docker compose run --rm pipeline     # collection, load, dbt build
+docker compose up -d api             # then open http://localhost:8000/docs
+```
+
+The database is exposed on port 5433 of your machine, so it does not clash with a local PostgreSQL.
+
+### Without Docker
+
 Requirements: Python 3, PostgreSQL, Power BI Desktop (Windows).
 
 ```bash
@@ -136,6 +159,7 @@ pip install -r requirements.txt
 | `src/chargement.py` | Load into PostgreSQL |
 | `src/pipeline.py` | Runs collection then load |
 | `src/api.py` | REST API (FastAPI) on current prices |
+| `Dockerfile`, `docker-compose.yml` | Container image and services (database, API, pipeline) |
 | `dbt_carburants/` | dbt project: staging and mart models, data tests |
 | `tests/` | Automated tests (pytest) |
 | `.github/workflows/tests.yml` | Continuous integration (GitHub Actions) |

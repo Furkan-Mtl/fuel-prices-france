@@ -1,0 +1,53 @@
+# Lance tout le projet : base PostgreSQL, API, et pipeline à la demande.
+# Utilisation :
+#   docker compose up -d --build      (base + API)
+#   docker compose run --rm pipeline  (collecte, chargement et dbt build)
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-carburants}
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?Renseigne PGPASSWORD dans le fichier .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Création des tables et de la vue au premier démarrage
+      - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./sql/02_vue_prix_actuels.sql:/docker-entrypoint-initdb.d/02_vue_prix_actuels.sql:ro
+    ports:
+      - "5433:5432"   # 5433 côté PC, pour ne pas gêner un PostgreSQL déjà installé
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      PGHOST: db          # dans Docker, la base s'appelle « db »
+      PGPORT: "5432"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pipeline:
+    build: .
+    env_file: .env
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+    command: ["python", "src/pipeline.py"]
+    volumes:
+      - ./data:/app/data   # garde les CSV collectés sur le PC
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["pipeline"]  # ne démarre pas avec « up », seulement avec « run »
+
+volumes:
+  pgdata:
